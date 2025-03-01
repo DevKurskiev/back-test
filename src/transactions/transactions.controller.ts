@@ -25,12 +25,21 @@ export class TransactionsController {
   @Get()
   @Roles('buyer', 'seller', 'admin')
   @UseGuards(JwtAuthGuard)
-  async findByUserId(
+  async findByUserIdAll(
     @Param('userId') userId: number,
     @Query() filters: any,
     @Req() req,
   ): Promise<{ data: Transaction[]; total: number }> {
     return this.transactionsService.findAll(filters, req.user);
+  }
+  @Get('user')
+  @Roles('buyer', 'seller', 'admin')
+  @UseGuards(JwtAuthGuard)
+  async findByUserTransactions(
+    @Query() filters: any,
+    @Req() req,
+  ): Promise<{ data: Transaction[]; total: number }> {
+    return this.transactionsService.findByUserId(filters, req.user);
   }
 
   @Get(':id')

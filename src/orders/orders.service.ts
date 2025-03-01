@@ -78,8 +78,22 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    Object.assign(order, orderData);
-    return this.orderRepository.save(order);
+    let adjustedPrice = +order.price; // 👈 Начинаем с исходной цены
+
+    // Коррекция курса в зависимости от валютной пары и типа операции
+    if (order.operationType === 'sell') {
+      if (order.currencyPair === 'USD/RUB') {
+        adjustedPrice += 0.5; // 👈 Продавец продаёт доллар → +0.5
+      } else if (order.currencyPair === 'RUB/USD') {
+        adjustedPrice -= 0.5; // 👈 Продавец продаёт рубль → -0.5
+      }
+    }
+
+    const newOrderData = { ...orderData, price: adjustedPrice };
+    const newOrder = { ...order, price: adjustedPrice };
+
+    Object.assign(newOrder, newOrderData);
+    return this.orderRepository.save(newOrder);
   }
 
   async getReservedAmount(orderId: number): Promise<number> {
@@ -129,7 +143,18 @@ export class OrdersService {
   }
 
   async create(order: Partial<Order>): Promise<Order> {
-    const payload = { ...order, price: order.price + 0.5 };
+    let adjustedPrice = order.price; // 👈 Начинаем с исходной цены
+
+    // Коррекция курса в зависимости от валютной пары и типа операции
+    if (order.operationType === 'sell') {
+      if (order.currencyPair === 'USD/RUB') {
+        adjustedPrice += 0.5; // 👈 Продавец продаёт доллар → +0.5
+      } else if (order.currencyPair === 'RUB/USD') {
+        adjustedPrice -= 0.5; // 👈 Продавец продаёт рубль → -0.5
+      }
+    }
+
+    const payload = { ...order, price: adjustedPrice };
     const newOrder = this.orderRepository.create(payload);
     return this.orderRepository.save(newOrder);
   }

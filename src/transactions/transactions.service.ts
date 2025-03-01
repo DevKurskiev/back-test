@@ -95,6 +95,59 @@ export class TransactionsService {
     return { data: transactions, total };
   }
 
+  async findByUserId(filters: any, currentUser: User) {
+    const queryBuilder = this.transactionRepository
+      .createQueryBuilder('transaction')
+      .leftJoinAndSelect('transaction.buyer', 'buyer')
+      .leftJoinAndSelect('transaction.seller', 'seller')
+      .where(
+        'transaction.buyerId = :userId OR transaction.sellerId = :userId',
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        { userId: currentUser.userId },
+      );
+
+    // Применение фильтров
+    if (filters.status) {
+      queryBuilder.andWhere('transaction.status = :status', {
+        status: filters.status,
+      });
+    }
+    if (filters.amount) {
+      queryBuilder.andWhere('transaction.amount >= :amount', {
+        amount: filters.amount,
+      });
+    }
+
+    // Сортировка
+    if (filters.sortField && filters.sortOrder) {
+      queryBuilder.orderBy(
+        `transaction.${filters.sortField}`,
+        filters.sortOrder.toUpperCase(),
+      );
+    }
+
+    // Пагинация
+    const page = filters.page ? Number(filters.page) : 1;
+    const limit = filters.limit ? Number(filters.limit) : 10;
+    queryBuilder.skip((page - 1) * limit).take(limit);
+
+    const [transactions, total] = await queryBuilder.getManyAndCount();
+
+    return {
+      data: transactions.map((transaction) => ({
+        ...transaction,
+        buyer: transaction.buyer
+          ? { ...transaction.buyer, phone: undefined, passwordHash: undefined }
+          : null,
+        seller: transaction.seller
+          ? { ...transaction.seller, phone: undefined, passwordHash: undefined }
+          : null,
+      })),
+      total,
+    };
+  }
+
   async findOne(id: number): Promise<Transaction> {
     return this.transactionRepository.findOne({
       where: { id },
